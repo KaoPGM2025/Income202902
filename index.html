@@ -3,29 +3,454 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Income Tracker V3.0</title>
+  <title>บันทึกรายได้</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="/_sdk/element_sdk.js"></script>
   <script src="/_sdk/data_sdk.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
   <style>
     body {
       box-sizing: border-box;
+    }
+    * {
       font-family: 'Prompt', sans-serif;
     }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+    }
+    .income-gradient {
+      background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%);
+    }
+    .stat-card {
+      transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-4px);
+    }
     .tab-active {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #059669, #10b981);
       color: white;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
     }
-    .card-gradient {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .fade-in {
+      animation: fadeIn 0.4s ease-out;
     }
-    .income-item {
-      animation: slideIn 0.3s ease-out;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    @keyframes slideIn {
+    .shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 overflow-auto">
+  <div id="app" class="min-h-full w-full"><!-- Header -->
+   <div class="income-gradient text-white py-6 px-4 shadow-lg">
+    <div class="max-w-2xl mx-auto">
+     <div class="flex items-center justify-between">
+      <div>
+       <h1 id="app-title" class="text-2xl font-bold flex items-center gap-2">💰 บันทึกรายได้</h1>
+       <p class="text-emerald-100 text-sm mt-1">ติดตามรายได้ของคุณอย่างง่ายดาย</p>
+      </div>
+      <div class="text-right">
+       <p class="text-emerald-100 text-xs">รายได้รวมทั้งหมด</p>
+       <p id="total-income" class="text-2xl font-bold">฿0</p>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="max-w-2xl mx-auto px-4 py-6 space-y-6"><!-- Quick Stats -->
+    <div class="grid grid-cols-3 gap-3">
+     <div class="stat-card glass-card rounded-2xl p-4 shadow-md border border-emerald-100">
+      <div class="flex items-center gap-2 mb-2"><span class="text-lg">📅</span> <span class="text-xs text-gray-500 font-medium">วันนี้</span>
+      </div>
+      <p id="today-income" class="text-lg font-bold text-emerald-600">฿0</p>
+     </div>
+     <div class="stat-card glass-card rounded-2xl p-4 shadow-md border border-teal-100">
+      <div class="flex items-center gap-2 mb-2"><span class="text-lg">📆</span> <span class="text-xs text-gray-500 font-medium">สัปดาห์นี้</span>
+      </div>
+      <p id="week-income" class="text-lg font-bold text-teal-600">฿0</p>
+     </div>
+     <div class="stat-card glass-card rounded-2xl p-4 shadow-md border border-cyan-100">
+      <div class="flex items-center gap-2 mb-2"><span class="text-lg">🗓️</span> <span class="text-xs text-gray-500 font-medium">เดือนนี้</span>
+      </div>
+      <p id="month-income" class="text-lg font-bold text-cyan-600">฿0</p>
+     </div>
+    </div><!-- Add Income Form -->
+    <div class="glass-card rounded-2xl p-5 shadow-lg border border-gray-100">
+     <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">➕ เพิ่มรายได้ใหม่</h2>
+     <form id="income-form" class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+       <div><label for="amount" class="block text-sm font-medium text-gray-600 mb-1">จำนวนเงิน</label>
+        <div class="relative"><span id="currency-prefix" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">฿</span> <input type="number" id="amount" placeholder="0" required min="0" step="0.01" class="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition text-lg font-semibold">
+        </div>
+       </div>
+       <div><label for="category" class="block text-sm font-medium text-gray-600 mb-1">หมวดหมู่</label> <select id="category" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition bg-white"> <option value="salary">💼 เงินเดือน</option> <option value="freelance">💻 ฟรีแลนซ์</option> <option value="business">🏪 ธุรกิจ</option> <option value="investment">📈 การลงทุน</option> <option value="bonus">🎁 โบนัส</option> <option value="other">💡 อื่นๆ</option> </select>
+       </div>
+      </div>
+      <div><label for="description" class="block text-sm font-medium text-gray-600 mb-1">รายละเอียด</label> <input type="text" id="description" placeholder="รายละเอียดรายได้..." required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition">
+      </div>
+      <div><label for="date" class="block text-sm font-medium text-gray-600 mb-1">วันที่</label> <input type="date" id="date" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition">
+      </div><button type="submit" id="submit-btn" class="w-full py-3 rounded-xl income-gradient text-white font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"> <span id="submit-text">บันทึกรายได้</span> </button>
+     </form>
+     <p id="limit-warning" class="hidden text-red-500 text-sm mt-3 text-center">⚠️ ถึงจำนวนสูงสุดแล้ว (999 รายการ) กรุณาลบบางรายการก่อน</p>
+    </div><!-- Tabs -->
+    <div class="flex gap-2 bg-white/50 p-1.5 rounded-2xl"><button data-tab="all" class="tab-btn flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition tab-active"> ทั้งหมด </button> <button data-tab="today" class="tab-btn flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition text-gray-600 hover:bg-white"> วันนี้ </button> <button data-tab="week" class="tab-btn flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition text-gray-600 hover:bg-white"> สัปดาห์ </button> <button data-tab="month" class="tab-btn flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition text-gray-600 hover:bg-white"> เดือน </button>
+    </div><!-- Income List -->
+    <div class="glass-card rounded-2xl p-5 shadow-lg border border-gray-100">
+     <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">📋 รายการรายได้</h2>
+     <div id="income-list" class="space-y-3">
+      <div class="text-center py-8 text-gray-400">
+       <p class="text-4xl mb-2">📝</p>
+       <p>ยังไม่มีรายการรายได้</p>
+       <p class="text-sm">เริ่มบันทึกรายได้ของคุณเลย!</p>
+      </div>
+     </div>
+    </div><!-- Footer -->
+    <div class="text-center py-4 text-gray-400 text-sm">
+     <p>💚 บันทึกรายได้ทุกวัน สร้างอนาคตที่มั่นคง</p>
+    </div>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      app_title: 'บันทึกรายได้',
+      currency_symbol: '฿',
+      background_color: '#ecfdf5',
+      surface_color: '#ffffff',
+      text_color: '#1f2937',
+      primary_color: '#059669',
+      secondary_color: '#0d9488'
+    };
+
+    let config = { ...defaultConfig };
+    let incomeData = [];
+    let currentTab = 'all';
+    let recordCount = 0;
+
+    const categoryInfo = {
+      salary: { emoji: '💼', name: 'เงินเดือน' },
+      freelance: { emoji: '💻', name: 'ฟรีแลนซ์' },
+      business: { emoji: '🏪', name: 'ธุรกิจ' },
+      investment: { emoji: '📈', name: 'การลงทุน' },
+      bonus: { emoji: '🎁', name: 'โบนัส' },
+      other: { emoji: '💡', name: 'อื่นๆ' }
+    };
+
+    function formatCurrency(amount) {
+      const symbol = config.currency_symbol || defaultConfig.currency_symbol;
+      return `${symbol}${Number(amount).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+    }
+
+    function isToday(dateStr) {
+      const today = new Date();
+      const date = new Date(dateStr);
+      return date.toDateString() === today.toDateString();
+    }
+
+    function isThisWeek(dateStr) {
+      const today = new Date();
+      const date = new Date(dateStr);
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 7);
+      return date >= startOfWeek && date < endOfWeek;
+    }
+
+    function isThisMonth(dateStr) {
+      const today = new Date();
+      const date = new Date(dateStr);
+      return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+    }
+
+    function calculateStats() {
+      let total = 0, todayTotal = 0, weekTotal = 0, monthTotal = 0;
+      
+      incomeData.forEach(item => {
+        const amount = Number(item.amount) || 0;
+        total += amount;
+        if (isToday(item.date)) todayTotal += amount;
+        if (isThisWeek(item.date)) weekTotal += amount;
+        if (isThisMonth(item.date)) monthTotal += amount;
+      });
+
+      document.getElementById('total-income').textContent = formatCurrency(total);
+      document.getElementById('today-income').textContent = formatCurrency(todayTotal);
+      document.getElementById('week-income').textContent = formatCurrency(weekTotal);
+      document.getElementById('month-income').textContent = formatCurrency(monthTotal);
+    }
+
+    function filterData() {
+      let filtered = [...incomeData];
+      
+      switch (currentTab) {
+        case 'today':
+          filtered = incomeData.filter(item => isToday(item.date));
+          break;
+        case 'week':
+          filtered = incomeData.filter(item => isThisWeek(item.date));
+          break;
+        case 'month':
+          filtered = incomeData.filter(item => isThisMonth(item.date));
+          break;
+      }
+      
+      return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    function renderIncomeList() {
+      const listEl = document.getElementById('income-list');
+      const filtered = filterData();
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `
+          <div class="text-center py-8 text-gray-400">
+            <p class="text-4xl mb-2">📝</p>
+            <p>ยังไม่มีรายการรายได้</p>
+            <p class="text-sm">เริ่มบันทึกรายได้ของคุณเลย!</p>
+          </div>
+        `;
+        return;
+      }
+
+      const existingItems = new Map(
+        [...listEl.querySelectorAll('[data-id]')].map(el => [el.dataset.id, el])
+      );
+
+      const fragment = document.createDocumentFragment();
+      const newIds = new Set();
+
+      filtered.forEach(item => {
+        newIds.add(item.__backendId);
+        const cat = categoryInfo[item.category] || categoryInfo.other;
+        
+        if (existingItems.has(item.__backendId)) {
+          const el = existingItems.get(item.__backendId);
+          el.querySelector('.item-amount').textContent = formatCurrency(item.amount);
+          el.querySelector('.item-desc').textContent = item.description;
+          el.querySelector('.item-cat').textContent = `${cat.emoji} ${cat.name}`;
+          el.querySelector('.item-date').textContent = formatDate(item.date);
+          fragment.appendChild(el);
+        } else {
+          const div = document.createElement('div');
+          div.dataset.id = item.__backendId;
+          div.className = 'flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-100 fade-in';
+          div.innerHTML = `
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-2xl">
+                ${cat.emoji}
+              </div>
+              <div>
+                <p class="item-desc font-semibold text-gray-800">${item.description}</p>
+                <p class="item-cat text-sm text-gray-500">${cat.emoji} ${cat.name}</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="item-amount text-lg font-bold text-emerald-600">${formatCurrency(item.amount)}</p>
+              <p class="item-date text-xs text-gray-400">${formatDate(item.date)}</p>
+            </div>
+            <button class="delete-btn ml-3 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" data-id="${item.__backendId}">
+              🗑️
+            </button>
+          `;
+          fragment.appendChild(div);
+        }
+      });
+
+      listEl.innerHTML = '';
+      listEl.appendChild(fragment);
+
+      listEl.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', handleDelete);
+      });
+    }
+
+    let deleteConfirm = null;
+
+    async function handleDelete(e) {
+      const id = e.currentTarget.dataset.id;
+      const btn = e.currentTarget;
+      
+      if (deleteConfirm === id) {
+        btn.disabled = true;
+        btn.textContent = '⏳';
+        
+        const item = incomeData.find(i => i.__backendId === id);
+        if (item) {
+          const result = await window.dataSdk.delete(item);
+          if (!result.isOk) {
+            btn.disabled = false;
+            btn.textContent = '❌';
+            setTimeout(() => { btn.textContent = '🗑️'; }, 1500);
+          }
+        }
+        deleteConfirm = null;
+      } else {
+        deleteConfirm = id;
+        btn.textContent = '✓ ยืนยัน';
+        btn.classList.add('text-red-500', 'bg-red-50');
+        
+        setTimeout(() => {
+          if (deleteConfirm === id) {
+            deleteConfirm = null;
+            btn.textContent = '🗑️';
+            btn.classList.remove('text-red-500', 'bg-red-50');
+          }
+        }, 3000);
+      }
+    }
+
+    function updateUI() {
+      calculateStats();
+      renderIncomeList();
+      
+      const warningEl = document.getElementById('limit-warning');
+      const submitBtn = document.getElementById('submit-btn');
+      
+      if (recordCount >= 999) {
+        warningEl.classList.remove('hidden');
+        submitBtn.disabled = true;
+      } else {
+        warningEl.classList.add('hidden');
+        submitBtn.disabled = false;
+      }
+    }
+
+    const dataHandler = {
+      onDataChanged(data) {
+        incomeData = data;
+        recordCount = data.length;
+        updateUI();
+      }
+    };
+
+    async function initApp() {
+      document.getElementById('date').valueAsDate = new Date();
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('tab-active');
+            b.classList.add('text-gray-600');
+          });
+          btn.classList.add('tab-active');
+          btn.classList.remove('text-gray-600');
+          currentTab = btn.dataset.tab;
+          renderIncomeList();
+        });
+      });
+
+      document.getElementById('income-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (recordCount >= 999) {
+          document.getElementById('limit-warning').classList.remove('hidden');
+          return;
+        }
+
+        const submitBtn = document.getElementById('submit-btn');
+        const submitText = document.getElementById('submit-text');
+        
+        submitBtn.disabled = true;
+        submitText.textContent = 'กำลังบันทึก...';
+
+        const newIncome = {
+          amount: parseFloat(document.getElementById('amount').value),
+          description: document.getElementById('description').value,
+          category: document.getElementById('category').value,
+          date: document.getElementById('date').value
+        };
+
+        const result = await window.dataSdk.create(newIncome);
+        
+        if (result.isOk) {
+          document.getElementById('income-form').reset();
+          document.getElementById('date').valueAsDate = new Date();
+          submitText.textContent = '✓ บันทึกแล้ว!';
+          setTimeout(() => { submitText.textContent = 'บันทึกรายได้'; }, 1500);
+        } else {
+          submitText.textContent = '❌ เกิดข้อผิดพลาด';
+          setTimeout(() => { submitText.textContent = 'บันทึกรายได้'; }, 2000);
+        }
+        
+        submitBtn.disabled = false;
+      });
+
+      const initResult = await window.dataSdk.init(dataHandler);
+      if (!initResult.isOk) {
+        console.error('Failed to initialize Data SDK');
+      }
+    }
+
+    async function onConfigChange(cfg) {
+      config = { ...defaultConfig, ...cfg };
+      
+      const title = config.app_title || defaultConfig.app_title;
+      document.getElementById('app-title').innerHTML = `💰 ${title}`;
+      
+      const symbol = config.currency_symbol || defaultConfig.currency_symbol;
+      document.getElementById('currency-prefix').textContent = symbol;
+      
+      updateUI();
+    }
+
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities: (cfg) => ({
+          recolorables: [
+            {
+              get: () => cfg.background_color || defaultConfig.background_color,
+              set: (v) => { cfg.background_color = v; window.elementSdk.setConfig({ background_color: v }); }
+            },
+            {
+              get: () => cfg.surface_color || defaultConfig.surface_color,
+              set: (v) => { cfg.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); }
+            },
+            {
+              get: () => cfg.text_color || defaultConfig.text_color,
+              set: (v) => { cfg.text_color = v; window.elementSdk.setConfig({ text_color: v }); }
+            },
+            {
+              get: () => cfg.primary_color || defaultConfig.primary_color,
+              set: (v) => { cfg.primary_color = v; window.elementSdk.setConfig({ primary_color: v }); }
+            },
+            {
+              get: () => cfg.secondary_color || defaultConfig.secondary_color,
+              set: (v) => { cfg.secondary_color = v; window.elementSdk.setConfig({ secondary_color: v }); }
+            }
+          ],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (cfg) => new Map([
+          ['app_title', cfg.app_title || defaultConfig.app_title],
+          ['currency_symbol', cfg.currency_symbol || defaultConfig.currency_symbol]
+        ])
+      });
+    }
+
+    initApp();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c834a4f77537329',t:'MTc3MDEzNTk5MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>    @keyframes slideIn {
       from { opacity: 0; transform: translateY(-10px); }
       to { opacity: 1; transform: translateY(0); }
     }
